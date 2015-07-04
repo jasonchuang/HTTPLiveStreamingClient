@@ -1,5 +1,6 @@
 package com.jasonsoft.httplivestreaming.client;
 
+import java.util.List;
 import java.util.Locale;
 
 import android.app.Activity;
@@ -8,6 +9,7 @@ import android.app.FragmentManager;
 import android.app.SearchManager;
 import android.content.Intent;
 import android.content.res.Configuration;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.ActionBarDrawerToggle;
 import android.support.v4.view.GravityCompat;
@@ -22,7 +24,14 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.MediaController;
 import android.widget.Toast;
+import android.widget.VideoView;
+
+import retrofit.Callback;
+import retrofit.RestAdapter;
+import retrofit.RetrofitError;
+import retrofit.client.Response;
 
 /**
  * This example illustrates a common usage of the DrawerLayout widget
@@ -59,6 +68,8 @@ public class MainActivity extends Activity {
     private CharSequence mDrawerTitle;
     private CharSequence mTitle;
     private String[] mPlanetTitles;
+    private List<VideoEntry> mVideoList;
+    String DOMAIN = "http://http-live-streaming-server.herokuapp.com";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,9 +84,6 @@ public class MainActivity extends Activity {
         // set a custom shadow that overlays the main content when the drawer opens
         mDrawerLayout.setDrawerShadow(R.drawable.drawer_shadow, GravityCompat.START);
         // set up the drawer's list view with items and click listener
-        mDrawerList.setAdapter(new ArrayAdapter<String>(this,
-                R.layout.drawer_list_item, mPlanetTitles));
-        mDrawerList.setOnItemClickListener(new DrawerItemClickListener());
 
         // enable ActionBar app icon to behave as action to toggle nav drawer
         getActionBar().setDisplayHomeAsUpEnabled(true);
@@ -102,9 +110,9 @@ public class MainActivity extends Activity {
         };
         mDrawerLayout.setDrawerListener(mDrawerToggle);
 
-        if (savedInstanceState == null) {
-            selectItem(0);
-        }
+        RestAdapter restAdapter = new RestAdapter.Builder().setEndpoint(DOMAIN).build();
+        VideoListService service = restAdapter.create(VideoListService.class);
+        service.getVideoList(callback);
     }
 
     @Override
@@ -158,9 +166,9 @@ public class MainActivity extends Activity {
 
     private void selectItem(int position) {
         // update the main content by replacing fragments
-        Fragment fragment = new PlanetFragment();
+        Fragment fragment = new VideoFragment();
         Bundle args = new Bundle();
-        args.putInt(PlanetFragment.ARG_PLANET_NUMBER, position);
+        args.putInt(VideoFragment.ARG_PLANET_NUMBER, position);
         fragment.setArguments(args);
 
         FragmentManager fragmentManager = getFragmentManager();
@@ -168,7 +176,6 @@ public class MainActivity extends Activity {
 
         // update selected item and title, then close the drawer
         mDrawerList.setItemChecked(position, true);
-        setTitle(mPlanetTitles[position]);
         mDrawerLayout.closeDrawer(mDrawerList);
     }
 
@@ -200,25 +207,41 @@ public class MainActivity extends Activity {
     /**
      * Fragment that appears in the "content_frame", shows a planet
      */
-    public static class PlanetFragment extends Fragment {
+    public class VideoFragment extends Fragment {
         public static final String ARG_PLANET_NUMBER = "planet_number";
 
-        public PlanetFragment() {
+        public VideoFragment() {
             // Empty constructor required for fragment subclasses
         }
 
         @Override
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
                 Bundle savedInstanceState) {
-            View rootView = inflater.inflate(R.layout.fragment_planet, container, false);
             int i = getArguments().getInt(ARG_PLANET_NUMBER);
-            String planet = getResources().getStringArray(R.array.planets_array)[i];
+            VideoEntry videoEntry = mVideoList.get(i);
+            getActivity().setTitle(videoEntry.name);
 
-            int imageId = getResources().getIdentifier(planet.toLowerCase(Locale.getDefault()),
-                            "drawable", getActivity().getPackageName());
-            ((ImageView) rootView.findViewById(R.id.image)).setImageResource(imageId);
-            getActivity().setTitle(planet);
+            View rootView = inflater.inflate(R.layout.fragment_video, container, false);
+            VideoView videoView = (VideoView) rootView.findViewById(R.id.video);
+            videoView.stopPlayback();
+            videoView.setVideoURI(Uri.parse(videoEntry.video_content));
+            videoView.setMediaController(new MediaController(MainActivity.this));
+            videoView.requestFocus();
+            videoView.start();
             return rootView;
         }
     }
+
+    Callback callback = new Callback() {
+        @Override
+        public void success(Object object, Response response) {
+            mVideoList = (List<VideoEntry>) object;
+            mDrawerList.setAdapter(new MenuDrawerAdapter(MainActivity.this, (List<VideoEntry>)object));
+            mDrawerList.setOnItemClickListener(new DrawerItemClickListener());
+        }
+
+        @Override
+        public void failure(RetrofitError retrofitError) {
+        }
+    };
 }

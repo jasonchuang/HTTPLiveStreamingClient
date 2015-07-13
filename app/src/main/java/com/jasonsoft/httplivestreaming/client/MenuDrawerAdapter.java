@@ -46,21 +46,15 @@ public class MenuDrawerAdapter extends BaseAdapter {
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
-        MenuDrawerItemViewHolder holder = null;
-        if (convertView == null) {
-            holder = new MenuDrawerItemViewHolder();
-            convertView = mInflater.inflate(R.layout.video_list_item, null);
-            holder.initViewHolder(convertView);
-            convertView.setTag(holder);
-        } else {
-            holder = (MenuDrawerItemViewHolder) convertView.getTag();
-        }
+        View view = mInflater.inflate(R.layout.video_list_item, null);
+        MenuDrawerItemViewHolder holder = new MenuDrawerItemViewHolder();
+        holder.initViewHolder(view);
 
         VideoEntry item = mItems.get(position);
         mImageLoader.displayImage(item.video_thumbnail, holder.icon);
         holder.title.setText(item.name);
         holder.details.setText(item.video_content);
-        return convertView;
+        return view;
     }
 
     class MenuDrawerItemViewHolder {
